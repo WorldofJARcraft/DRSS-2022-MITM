@@ -1,7 +1,7 @@
 //
 // Created by erica on 25/05/2022.
 //
-
+#include <sci_ls_wrapper.h>
 #include "rasta_wrapper.h"
 #include <string>
 #include <iostream>
@@ -92,6 +92,10 @@ namespace rasta {
             sr_disconnect(&this->signal_handle, connection->remote_id);
         }
         sr_cleanup(&this->signal_handle);
+    }
+
+    sci_ls::sci_ls_wrapper& rasta_wrapper::register_scils_wrapper(const std::string& scils_id) {
+        return sci_ls::sci_ls_wrapper::getInstance(&this->signal_handle,scils_id.data());
     }
 
 } // rasta

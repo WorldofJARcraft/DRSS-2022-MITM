@@ -5,9 +5,10 @@
 #ifndef DRSS_MITM_HEXDUMP_H
 #define DRSS_MITM_HEXDUMP_H
 #include <sys/types.h>
-#include <stdio.h>
+#include <cstdio>
+
 // https://gist.github.com/ccbrown/9722406
-void DumpHex(const void* data, size_t size) {
+static inline void DumpHex(const void* data, size_t size) {
     char ascii[17];
     size_t i, j;
     ascii[16] = '\0';
