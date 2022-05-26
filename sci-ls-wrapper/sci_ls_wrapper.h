@@ -13,6 +13,9 @@ namespace rasta::sci_ls {
             SCI_LS_WRAPPER_MODE_SIGNAL,
             SCI_LS_WRAPPER_MODE_INTERLOCKING
         } sci_ls_wrapper_operation_mode;
+
+        const uint64_t SHOW_ASPECT_COMMAND_INTERVAL_MS=5000;
+
         class sci_ls_wrapper {
         public:
             static std::shared_ptr<sci_ls_wrapper> getInstance(struct rasta_handle *handle, const char *scils_id, sci_ls_wrapper_operation_mode mode);

@@ -3,10 +3,11 @@
 //
 
 #include "sci_ls_wrapper.h"
-
+#include <chrono>
 #include <iostream>
 #include <hexdump.h>
 #include <unistd.h>
+#include <future>
 
 #define error_abort(message) fprintf(stderr,"Error: %s on %s line %d\n",message,__FILE__,__LINE__); abort()
 
@@ -87,7 +88,14 @@ namespace rasta::sci_ls {
         signal_aspect.main = SCILS_MAIN_KS_1;
         sci_ls_wrapper::getInstance()->setSignalAspect(signal_aspect);
 
-        send_signal_aspect(ls, sender, signal_aspect);
+        // do not overwhelm the signal with requests
+        std::async(std::launch::async, [&ls, &sender, &signal_aspect] () {
+            // Use sleep_for to wait specified time (or sleep_until).
+            std::this_thread::sleep_for( std::chrono::milliseconds {SHOW_ASPECT_COMMAND_INTERVAL_MS});
+            // Do whatever you want.
+            send_signal_aspect(ls, sender, signal_aspect);
+        } );
+
     }
 
     static void send_signal_aspect(scils_t *ls, char *sender, scils_signal_aspect &signal_aspect) {
