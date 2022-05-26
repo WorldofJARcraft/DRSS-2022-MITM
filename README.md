@@ -36,4 +36,5 @@ cmake --build . -v
 ## Source Layout
 - attack-clients: holds the executables that perform the actual attacks, compile into individual executables
 - rasta-wrapper: holds a C++ class that wraps the RaSTA protocol, compiles into a static library librasta-wrapper.a
+- sci-ls-wrapper: holds a C++ class that wraps the SCI-LS and SCI protocols, on top of the rasta-wrapper. Compiles into librasta-wrapper.a as well.
 - CMakeLists.txt.in: configuration to build the RaSTA reference implementation
