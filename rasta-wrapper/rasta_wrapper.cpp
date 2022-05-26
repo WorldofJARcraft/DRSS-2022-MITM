@@ -125,4 +125,9 @@ namespace rasta {
                                                    rasta_network, onReceive);
     }
 
+    bool rasta_wrapper::is_connected() {
+        return rastalist_count(&this->signal_handle.connections) > 0 &&
+               rastalist_getConnection(&this->signal_handle.connections, 0)->current_state == RASTA_CONNECTION_UP;
+    }
+
 } // rasta

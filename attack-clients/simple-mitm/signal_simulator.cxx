@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include <unistd.h>
 #include "rasta_wrapper.h"
 
 #include "hexdump.h"
@@ -18,9 +19,15 @@ const std::string OWN_SCI_ID="SIGNAL";
 
 int main() {
     char input;
+    // active wrapper, opens a connection to the interlocking
     rasta::rasta_wrapper interlocking_wrapper(INTERLOCKING_IP, TESTBED_RASTA_INTERLOCKING_PORT, OWN_IP, OWN_PORT, TESTBED_RASTA_INTERLOCKING_ID, TESTBED_RASTA_SIGNAL_ID, 0);
+    // version of the SCI-LS wrapper that simulates a signal
     std::shared_ptr<rasta::sci_ls::sci_ls_wrapper> scils_wrapper = interlocking_wrapper.register_scils_wrapper(OWN_SCI_ID,rasta::sci_ls::SCI_LS_WRAPPER_MODE_SIGNAL);
-
+    sleep(10);
+    if(!interlocking_wrapper.is_connected()){
+        std::cerr << "ERROR: Interlocking did not connect!" << std::endl;
+        return 1;
+    }
     std::cout << "Connection established, waiting for messages!\n";
     std::cout << "Press any key to terminate!" << std::endl;
     std::cin >> input;

@@ -20,9 +20,16 @@ const std::string SIGNAL_SCI_ID="SIGNAL";
 
 int main() {
     char input;
-    rasta::rasta_wrapper interlocking_wrapper(OWN_IP, OWN_PORT, TESTBED_RASTA_INTERLOCKING_ID, 0);
+    // passive wrapper, waits for the signal to connect
+    rasta::rasta_wrapper signal_wrapper(OWN_IP, OWN_PORT, TESTBED_RASTA_INTERLOCKING_ID, 0);
     sleep(10);
-    std::shared_ptr<rasta::sci_ls::sci_ls_wrapper> scils_wrapper = interlocking_wrapper.register_scils_wrapper(OWN_SCI_ID,rasta::sci_ls::SCI_LS_WRAPPER_MODE_INTERLOCKING,(char *) SIGNAL_SCI_ID.data(),TESTBED_RASTA_SIGNAL_ID);
+
+    if(!signal_wrapper.is_connected()){
+        std::cerr << "ERROR: Signal did not connect!" << std::endl;
+        return 1;
+    }
+
+    std::shared_ptr<rasta::sci_ls::sci_ls_wrapper> scils_wrapper = signal_wrapper.register_scils_wrapper(OWN_SCI_ID,rasta::sci_ls::SCI_LS_WRAPPER_MODE_INTERLOCKING,(char *) SIGNAL_SCI_ID.data(),TESTBED_RASTA_SIGNAL_ID);
 
     std::cout << "Connection established, waiting for messages!\n";
     std::cout << "Press any key to terminate!" << std::endl;
