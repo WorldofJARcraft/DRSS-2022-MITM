@@ -14,11 +14,12 @@ namespace rasta::sci_ls {
         public:
             static sci_ls_wrapper& getInstance(struct rasta_handle *handle, const char *scils_id);
             static sci_ls_wrapper& getInstance();
+
+            sci_ls_wrapper(struct rasta_handle *handle, const char *scils_id);
             ~sci_ls_wrapper();
             scils_signal_aspect getSignalAspect();
             void setSignalAspect(scils_signal_aspect aspect);
         private:
-            sci_ls_wrapper(struct rasta_handle *handle, const char *scils_id);
             scils_signal_aspect signal_aspect{};
         };
 

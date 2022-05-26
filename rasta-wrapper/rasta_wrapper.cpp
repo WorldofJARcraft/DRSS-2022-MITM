@@ -16,7 +16,7 @@ namespace rasta {
     // borrowed from rasta_wrapper.cfg in rasta-protocol
     const int rasta_diag_window = 5000, rasta_max_packet = 3;
     const unsigned int md4_a = 0x67452301, md4_b=0xefcdab89, md4_c=0x98badcfe, md4_d=0x10325476;
-    const int rasta_mwa = 10, rasta_send_max=10, rasta_t_h = 200, rasta_t_max=1700;
+    const int rasta_mwa = 10, rasta_send_max=10, rasta_t_h = 2000, rasta_t_max=5000;
 
 
     void rasta_wrapper::setup_rasta_handle_connection(const std::string& server_ip, const int server_port, const std::string& own_ip, const int own_port, const unsigned long server_id, const unsigned long own_id, const unsigned long rasta_network, void (*onReceive)(struct rasta_notification_result *result)){
@@ -76,7 +76,6 @@ namespace rasta {
 
         // register onReceive hook if defined
         signal_handle.notifications.on_receive = onReceive;
-
         sr_connect(&signal_handle, server_id, &server_ip_config);
     }
 
