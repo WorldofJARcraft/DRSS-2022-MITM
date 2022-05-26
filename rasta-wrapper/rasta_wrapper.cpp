@@ -18,9 +18,10 @@ namespace rasta {
     const unsigned int md4_a = 0x67452301, md4_b=0xefcdab89, md4_c=0x98badcfe, md4_d=0x10325476;
     const int rasta_mwa = 10, rasta_send_max=10, rasta_t_h = 2000, rasta_t_max=5000;
 
+    void rasta_wrapper::setup_rasta_handle_passive_connection(const std::string &own_ip, int own_port, unsigned long own_id,
+                                                              unsigned long rasta_network,
+                                                              void (*onReceive)(rasta_notification_result *)) {
 
-    void rasta_wrapper::setup_rasta_handle_connection(const std::string& server_ip, const int server_port, const std::string& own_ip, const int own_port, const unsigned long server_id, const unsigned long own_id, const unsigned long rasta_network, void (*onReceive)(struct rasta_notification_result *result)){
-        struct RastaIPData server_ip_config{};
 
         struct RastaIPData own_ip_config{};
 
@@ -28,16 +29,9 @@ namespace rasta {
         struct DictionaryArray array = allocate_DictionaryArray(10);
         struct logger_t logger = logger_init(LOG_LEVEL_DEBUG,LOGGER_TYPE_CONSOLE);
 
-        if(server_ip.length() > sizeof(server_ip_config.ip)){
-            error_abort("RaSTA Server IP is too long!");
-        }
-
         if(own_ip.length() > sizeof(own_ip_config.ip)){
             error_abort("RaSTA Server IP is too long!");
         }
-
-        memcpy(server_ip_config.ip, server_ip.data(), server_ip.length());
-        server_ip_config.port = server_port;
 
         memcpy(own_ip_config.ip, own_ip.data(), own_ip.length());
         own_ip_config.port = own_port;
@@ -76,11 +70,28 @@ namespace rasta {
 
         // register onReceive hook if defined
         signal_handle.notifications.on_receive = onReceive;
+    }
+
+    void rasta_wrapper::setup_rasta_handle_active_connection(const std::string& server_ip, int server_port, const std::string& own_ip, int own_port, unsigned long server_id, unsigned long own_id, unsigned long rasta_network, void (*onReceive)(struct rasta_notification_result *result)){
+        struct RastaIPData server_ip_config{};
+
+        if(server_ip.length() > sizeof(server_ip_config.ip)){
+            error_abort("RaSTA Server IP is too long!");
+        }
+
+        memcpy(server_ip_config.ip, server_ip.data(), server_ip.length());
+        server_ip_config.port = server_port;
+
+        setup_rasta_handle_passive_connection(own_ip,own_port,own_id,rasta_network,onReceive);
+
         sr_connect(&signal_handle, server_id, &server_ip_config);
     }
 
+
+
     rasta_wrapper::rasta_wrapper(const std::string& server_ip, const int server_port, const std::string& own_ip, const int own_port, const unsigned long server_id, const unsigned long own_id, const unsigned long rasta_network, void (*onReceive)(struct rasta_notification_result *result)) {
-        this->setup_rasta_handle_connection(server_ip,server_port,own_ip,own_port,server_id,own_id,rasta_network,onReceive);
+        this->setup_rasta_handle_active_connection(server_ip, server_port, own_ip, own_port, server_id, own_id,
+                                                   rasta_network, onReceive);
     }
 
     rasta_wrapper::~rasta_wrapper() {
@@ -90,11 +101,28 @@ namespace rasta {
             std::cout << "Disconnection from connection " << (i+1) << " with remote " << connection->remote_id << std::endl;
             sr_disconnect(&this->signal_handle, connection->remote_id);
         }
-        sr_cleanup(&this->signal_handle);
+        // TODO this segfaults
+        //sr_cleanup(&this->signal_handle);
     }
 
-    sci_ls::sci_ls_wrapper& rasta_wrapper::register_scils_wrapper(const std::string& scils_id) {
-        return sci_ls::sci_ls_wrapper::getInstance(&this->signal_handle,scils_id.data());
+
+    std::shared_ptr<sci_ls::sci_ls_wrapper> rasta_wrapper::register_scils_wrapper(const std::string &scils_id, sci_ls::sci_ls_wrapper_operation_mode mode,
+                                                                  char *other_party_scils_name, int other_party_rasta_id) {
+        if(mode == sci_ls::SCI_LS_WRAPPER_MODE_SIGNAL) {
+            return sci_ls::sci_ls_wrapper::getInstance(&this->signal_handle, scils_id.data(), mode);
+        }
+        else if(mode == sci_ls::SCI_LS_WRAPPER_MODE_INTERLOCKING){
+            return sci_ls::sci_ls_wrapper::getInstance(&this->signal_handle,scils_id.data(),mode,other_party_scils_name,other_party_rasta_id);
+        }
+        else{
+            error_abort("Illegal SCI wrapper mode!");
+        }
+    }
+
+    rasta_wrapper::rasta_wrapper(const std::string &own_ip, int own_port, unsigned long own_id,
+                                 unsigned long rasta_network, void (*onReceive)(struct rasta_notification_result *)) {
+        this->setup_rasta_handle_passive_connection(own_ip, own_port, own_id,
+                                                   rasta_network, onReceive);
     }
 
 } // rasta

@@ -24,12 +24,14 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/rasta-src
 
 
 add_executable(signal_simulator attack-clients/simple-mitm/signal_simulator.cxx rasta-wrapper/hexdump.h)
+add_executable(interlocking_simulator attack-clients/simple-mitm/interlocking_simulator.cxx rasta-wrapper/hexdump.h)
 
 add_library(rasta-wrapper rasta-wrapper/rasta_wrapper.cpp rasta-wrapper/rasta_wrapper.h sci-ls-wrapper/sci_ls_wrapper.cpp sci-ls-wrapper/sci_ls_wrapper.h)
 
 target_link_libraries(rasta-wrapper PRIVATE rasta)
 
 target_link_libraries(signal_simulator rasta-wrapper)
+target_link_libraries(interlocking_simulator rasta-wrapper)
 
 target_include_directories(rasta-wrapper PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/rasta-src/src/rasta/headers/" "${CMAKE_CURRENT_BINARY_DIR}/rasta-src/src/sci/headers/")
 target_include_directories(rasta-wrapper PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/rasta-wrapper ${CMAKE_CURRENT_SOURCE_DIR}/sci-ls-wrapper)

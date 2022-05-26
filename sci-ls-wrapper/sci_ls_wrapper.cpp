@@ -28,7 +28,7 @@ namespace rasta::sci_ls {
 
     static void send_current_aspect(scils_t *ls, char *sender) {
         sci_return_code code = scils_send_signal_aspect_status(ls, sender,
-                                                               sci_ls_wrapper::getInstance().getSignalAspect());
+                                                               sci_ls_wrapper::getInstance()->getSignalAspect());
         if (code != SUCCESS) {
             error_abort("Returning the aspect status failed!");
         } else {
@@ -74,9 +74,39 @@ namespace rasta::sci_ls {
 
     static void onShowSignalAspect(scils_t *ls, char *sender, scils_signal_aspect signal_aspect) {
         std::cout << "Received show signal aspect from sender " << sci_get_name_string(sender) << "\n";
-        sci_ls_wrapper::getInstance().setSignalAspect(signal_aspect);
+        sci_ls_wrapper::getInstance()->setSignalAspect(signal_aspect);
         std::cout << "Returning the requested aspect status " << signal_aspect.main << "( " << aspect_to_name(signal_aspect.main) << ")" << std::endl;
         send_current_aspect(ls, sender);
+    }
+
+    static void send_signal_aspect(scils_t *ls, char *sender, scils_signal_aspect &signal_aspect);
+
+    static void onSignalAspectStatusReceived(scils_t *ls, char *sender, scils_signal_aspect signal_aspect) {
+        std::cout << "Received show signal aspect from sender " << sci_get_name_string(sender) << "\n";
+
+        signal_aspect.main = SCILS_MAIN_KS_1;
+        sci_ls_wrapper::getInstance()->setSignalAspect(signal_aspect);
+
+        send_signal_aspect(ls, sender, signal_aspect);
+    }
+
+    static void send_signal_aspect(scils_t *ls, char *sender, scils_signal_aspect &signal_aspect) {
+        std::cout << "Setting the signal status to " << signal_aspect.main << "( " << aspect_to_name(signal_aspect.main) << ")" << std::endl;
+        sci_return_code code = scils_send_show_signal_aspect(ls,sender,signal_aspect);
+        if (code != SUCCESS) {
+            error_abort("Sending show Signal aspect failed!");
+        } else {
+            std::cout << "Sent show signal aspect!" << std::endl;
+        }
+    }
+
+    static void sendCompareVersionRequest(scils_t *ls, char *receiver){
+        sci_return_code code = scils_send_version_request(ls,receiver,SCI_VERSION);
+        if (code != SUCCESS) {
+            error_abort("Sending compare version request failed!");
+        } else {
+            std::cout << "Sent compare version request!" << std::endl;
+        }
     }
 
     static void onCompareVersionRequestReceived(scils_t *ls, char *sender, unsigned char version) {
@@ -96,19 +126,47 @@ namespace rasta::sci_ls {
         }
     }
 
-    sci_ls_wrapper::sci_ls_wrapper(struct rasta_handle *handle, const char *scils_id) {
+    static void onCompareVersionResponseReceived(scils_t *ls, char *sender, unsigned char  version, sci_version_check_result result, unsigned char checksum_length,
+                                                 unsigned char * checksum) {
+        std::cout << "Received Version comparison response from sender " << sci_get_name_string(sender) << "for version "
+                  << std::hex << version;
+        std::cout << " and result: " << result << "\n";
+
+        // signal expects us to send the initialization request (in this implementation the status request) now
+        sci_return_code code = scils_send_status_request(ls, sender);
+        if (code != SUCCESS) {
+            error_abort("Sending the initialization request failed!");
+        } else {
+            std::cout << "Sending the initialization request succeeded!" << std::endl;
+        }
+    }
+
+    static void onStatusFinishedReceived(scils_t *ls, char *sender){
+        std::cout << "Status finished received from " << sender << std::endl;
+        scils_signal_aspect  aspect = sci_ls_wrapper::getInstance()->getSignalAspect();
+        send_signal_aspect(ls,sender,aspect);
+    }
+
+    sci_ls_wrapper::sci_ls_wrapper(struct rasta_handle *handle, const char *scils_id, const sci_ls_wrapper_operation_mode mode) {
+        if(mode != SCI_LS_WRAPPER_MODE_SIGNAL){
+            error_abort("Use the other constructor for signals!");
+        }
         scils_handle = scils_init(handle, (char *) scils_id);
         if (!scils_handle) {
             error_abort("scils_init failed");
         }
+        // functions required to simulate a signal
         scils_handle->notifications.on_show_signal_aspect_received = onShowSignalAspect;
         scils_handle->notifications.on_version_request_received = onCompareVersionRequestReceived;
         scils_handle->notifications.on_status_request_received = onStatusRequestReceived;
+
+
+        // glue that binds RaSTA and SCI-LS together
         handle->notifications.on_receive = scils_on_receive;
 
-        // RED
+        // red
         signal_aspect.main = SCILS_MAIN_HP_0;
-        // the following ones adapted to trace as best as possible
+        // the following ones adapted to trace as best as possible, will be overwritten by first status / request
         signal_aspect.additional = SCILS_ADDITIONAL_OFF;
         signal_aspect.zs3 = SCILS_ZS3_OFF;
         signal_aspect.zs3v = SCILS_ZS3_OFF;
@@ -118,15 +176,27 @@ namespace rasta::sci_ls {
         signal_aspect.upstream_driveway_information = SCILS_DRIVE_WAY_INFORMATION_NO_INFORMATION;
         signal_aspect.downstream_driveway_information = SCILS_DRIVE_WAY_INFORMATION_NO_INFORMATION;
         signal_aspect.dark_switching = SCILS_DARK_SWITCHING_SHOW;
-
     }
 
     sci_ls_wrapper::~sci_ls_wrapper() {
         scils_cleanup(scils_handle);
     }
 
-    sci_ls_wrapper &sci_ls_wrapper::getInstance(struct rasta_handle *handle, const char *scils_id) {
-        static sci_ls_wrapper instance(handle, scils_id);
+    static std::shared_ptr<sci_ls_wrapper> instance = nullptr;
+
+    std::shared_ptr<sci_ls_wrapper> sci_ls_wrapper::getInstance(struct rasta_handle *handle, const char *scils_id, const sci_ls_wrapper_operation_mode mode) {
+        if(instance){
+            return instance;
+        }
+        instance = std::make_shared<sci_ls_wrapper>(handle, scils_id, mode);
+        return instance;
+    }
+
+    std::shared_ptr<sci_ls_wrapper> sci_ls_wrapper::getInstance(struct rasta_handle *handle, const char *scils_id, const sci_ls_wrapper_operation_mode mode, char *other_party_name, int other_party_id) {
+        if(instance){
+            return instance;
+        }
+        instance = std::make_shared<sci_ls_wrapper>(handle, scils_id, mode,other_party_name,other_party_id);
         return instance;
     }
 
@@ -138,7 +208,45 @@ namespace rasta::sci_ls {
         this->signal_aspect = aspect;
     }
 
-    sci_ls_wrapper &sci_ls_wrapper::getInstance() {
-        return sci_ls_wrapper::getInstance(nullptr, nullptr);
+    std::shared_ptr<sci_ls_wrapper> sci_ls_wrapper::getInstance() {
+        return instance;
+    }
+
+    sci_ls_wrapper::sci_ls_wrapper(struct rasta_handle *handle, const char *scils_id,
+                                   sci_ls_wrapper_operation_mode mode, char *other_party_scils_name, const int other_party_rasta_id) {
+        if(mode != SCI_LS_WRAPPER_MODE_INTERLOCKING){
+            error_abort("Use the other constructor for signals!");
+        }
+        scils_handle = scils_init(handle, (char *) scils_id);
+        if (!scils_handle) {
+            error_abort("scils_init failed");
+        }
+        // functions required to simulate an interlocking
+        scils_handle->notifications.on_signal_aspect_status_received = onSignalAspectStatusReceived;
+        scils_handle->notifications.on_version_response_received = onCompareVersionResponseReceived;
+        scils_handle->notifications.on_status_finish_received = onStatusFinishedReceived;
+
+
+        // glue that binds RaSTA and SCI-LS together
+        handle->notifications.on_receive = scils_on_receive;
+
+        // green
+        signal_aspect.main = SCILS_MAIN_KS_1;
+        // the following ones adapted to trace as best as possible, will be overwritten by first status / request
+        signal_aspect.additional = SCILS_ADDITIONAL_OFF;
+        signal_aspect.zs3 = SCILS_ZS3_OFF;
+        signal_aspect.zs3v = SCILS_ZS3_OFF;
+        signal_aspect.zs2 = SCILS_ZS2_LETTER_A;
+        signal_aspect.zs2v = SCILS_ZS2_OFF;
+        signal_aspect.deprecation_information = SCILS_DEPRECIATION_INFORMATION_NO_INFORMATION;
+        signal_aspect.upstream_driveway_information = SCILS_DRIVE_WAY_INFORMATION_NO_INFORMATION;
+        signal_aspect.downstream_driveway_information = SCILS_DRIVE_WAY_INFORMATION_NO_INFORMATION;
+        signal_aspect.dark_switching = SCILS_DARK_SWITCHING_SHOW;
+
+        // so scils can resolve the other party
+        scils_register_sci_name(scils_handle,other_party_scils_name,other_party_rasta_id);
+
+        sendCompareVersionRequest(scils_handle,other_party_scils_name);
+
     }
 } // sci_ls
